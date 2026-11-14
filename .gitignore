@@ -7,3 +7,6 @@ out/
 .private-data/
 .vercel/
 *.log
+
+.vercel
+.env*

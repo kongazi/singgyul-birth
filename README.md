@@ -1,5 +1,10 @@
 # SINGGYUL MARKET 🍊
 
+- GitHub: https://github.com/kongazi/singgyul-birth
+- Vercel 프로젝트: https://vercel.com/kongazis-projects/singgyul-birth
+- `main` 브랜치에 push하면 Vercel에서 자동으로 프로덕션을 배포합니다.
+- 프로덕션은 Neon의 `singgyul-birth-db` 무료 데이터베이스를 사용합니다. 로컬 개발의 편지 파일은 자동으로 업로드하지 않습니다.
+
 Next.js 생일 마켓. 100귤로 굿즈를 고르고 편지와 함께 접수하거나 편지만 보낼 수 있습니다.
 
 ## 로컬 실행
