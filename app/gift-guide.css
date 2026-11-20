@@ -1,0 +1,31 @@
+.gift-guide { background: #faf8f3; color: #31271c; scroll-margin-top: calc(var(--store-header-height) - 30px); }
+.storefront.desktop-mode .site-window { overflow: clip; }
+.gift-story { height: 425svh; position: relative; }
+.gift-stage { height: calc(100svh - var(--store-header-height)); min-height: 400px; position: sticky; top: var(--store-header-height); overflow: hidden; isolation: isolate; background: #faf8f3; }
+.gift-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.gift-caption { position: absolute; left: 0; top: 0; opacity: 0; text-align: center; font-weight: 650; word-break: keep-all; white-space: pre-line; line-height: 1.5; letter-spacing: -.05em; pointer-events: none; will-change: transform,opacity; }
+.gift-caption.big { font-size: clamp(24px,2.6vw,38px); line-height: 1.35; }
+.gift-caption.line { font-size: clamp(16px,1.7vw,27px); font-weight: 500; line-height: 1.62; }
+.gift-caption.name { font-size: clamp(15px,1.6vw,23px); }
+.gift-skip { position: absolute; right: 32px; bottom: 25px; z-index: 2; font-size: 11px; color: #77634b; border-bottom: 1px solid #cbbb9f; padding: 8px 0; }
+.gift-stage .snow { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.gift-stage .snow i { position: absolute; top: -10%; width: 4px; height: 4px; border-radius: 50%; background: #cfbfab; opacity: .35; animation: gift-fall 14s linear infinite; }
+@keyframes gift-fall { to { transform: translate(15px,112vh); } }
+.gift-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.gift-static { display: none; padding: 35px 20px; }
+.gift-static article { text-align: center; margin: 40px auto 70px; }
+.gift-static img { max-width: 30%; height: 180px; object-fit: contain; }
+.gift-static h2 { font-size: 24px; margin: 20px 0 10px; }
+.gift-static p { line-height: 1.8; }
+.storefront .gift-guide + .goods { background: #faf8f3; padding-top: 35px; }
+@media(max-width:900px) {
+  .gift-story { height: 340svh; }
+  .gift-caption.big { font-size: 26px; }
+  .gift-caption.line { font-size: 16px; }
+  .gift-caption.name { font-size: 15px; }
+  .gift-skip { right: 18px; bottom: 18px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .gift-story { display: none; }
+  .gift-static { display: block; }
+}

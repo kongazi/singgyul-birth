@@ -35,6 +35,15 @@ export async function allRecords() {
   for (const e of entries) { if (e.key.startsWith('order:')) orders.push(e.value as Order); if (e.key.startsWith('review:')) reviews[e.key.slice(7)] = e.value as Review; }
   return { orders: orders.sort((a,b)=>b.createdAt.localeCompare(a.createdAt)), reviews };
 }
+export async function writerOrders(owner: string): Promise<Order[]> {
+  await init();
+  if (sql) {
+    const rows = await sql`SELECT value FROM singgyul_private WHERE key LIKE 'order:%' AND value->>'owner'=${owner} ORDER BY value->>'createdAt' DESC`;
+    return rows.map(row => row.value as Order);
+  }
+  const { orders } = await allRecords();
+  return orders.filter(order => (order as Order & { owner?: string }).owner === owner);
+}
 export async function rateLimit(key: string, max: number, seconds: number) {
   await init();
   const bucket = Math.floor(Date.now() / (seconds * 1000)); const rateKey = `rate:${key}:${bucket}`;
