@@ -1,0 +1,100 @@
+/* Full-screen editorial storefront. Scoped to keep the admin layout unchanged. */
+.storefront { --store-header-height: 92px; }
+.storefront .site-window { position: relative; }
+.storefront .market-header {
+  position: fixed; inset: 0 0 auto; z-index: 30; height: var(--store-header-height);
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  padding: 0 40px; color: #fff8eb; transition: background .25s, color .25s, box-shadow .25s;
+}
+.storefront .market-header.scrolled { background: #fcf7eff5; color: var(--brown); box-shadow: 0 1px 0 #4d2b1d14; backdrop-filter: blur(14px); }
+.storefront .market-header nav { display: flex; align-items: center; gap: 25px; font-size: 12px; }
+.storefront .market-header nav button { padding: 8px 0; }
+.storefront .market-brand { text-align: center; font-family: Georgia, serif; font-size: 30px; letter-spacing: 2px; line-height: 1.05; }
+.storefront .market-brand small { display: block; font: 9px 'Noto Sans KR',sans-serif; letter-spacing: 5px; margin: 6px 0 0 5px; }
+.storefront .header-actions { justify-self: end; gap: 22px; }
+.storefront .balance { background: none; color: inherit; border-radius: 0; padding: 0; gap: 7px; font-size: 11px; }
+.storefront .balance strong { font-size: 14px; font-weight: 500; }
+.storefront .bag { color: inherit; }
+.storefront .bag b { background: #e76b29; }
+.storefront main.market-main { max-width: none; margin: 0; }
+.landing-hero { position: relative; isolation: isolate; height: 100svh; min-height: 560px; overflow: hidden; color: #fff8eb; background: #a94d22; }
+.landing-backdrop { position: absolute; z-index: -2; inset: -40px; background-size: cover; background-position: center; filter: blur(35px) brightness(.78); }
+.landing-poster { position: absolute; inset: 0; background-size: contain; background-repeat: no-repeat; background-position: center; }
+.landing-video { position: absolute; width: 100%; height: 100%; object-fit: cover; }
+.landing-shade { position: absolute; inset: 0; background: linear-gradient(#29170f55, transparent 22%, transparent 65%, #29170f8a); pointer-events: none; }
+.landing-bottom { position: absolute; bottom: 48px; left: 24px; right: 24px; display: flex; align-items: center; flex-direction: column; gap: 14px; text-align: center; }
+.landing-edition { font-size: 9px; letter-spacing: 3px; opacity: .75; }
+.landing-bottom h1 { font-family: 'Gowun Batang',serif; font-size: 25px; font-weight: 400; letter-spacing: -.5px; margin: 0; }
+.landing-scroll { display: flex; gap: 16px; align-items: center; font-size: 12px; padding: 8px 0; border-bottom: 1px solid #fff8eb70; }
+.landing-scroll svg { transition: transform .2s; }
+.landing-scroll:hover svg { transform: translateY(4px); }
+.landing-side { position: absolute; left: 40px; bottom: 48px; font-size: 8px; letter-spacing: 2px; writing-mode: vertical-rl; transform: rotate(180deg); opacity: .6; }
+.video-toggle { position: absolute; bottom: 45px; right: 40px; border: 1px solid #fff8eb80; border-radius: 50%; width: 38px; height: 38px; display: grid; place-items: center; }
+.storefront .goods { padding: 65px 40px 0; scroll-margin-top: calc(var(--store-header-height) + 15px); }
+.storefront .section-heading { align-items: center; padding-bottom: 25px; border-bottom: 1px solid var(--line); }
+.storefront .section-heading h2 { font-size: 29px; }
+.storefront .section-heading h2 span { display: inline-block; }
+.storefront .product-count { margin: 0; font-size: 12px; }
+.storefront .filters { margin: 23px 0 30px; }
+.storefront .product-grid { gap: 42px 20px; }
+.storefront .product-image { border-radius: 0; }
+.storefront .product-tag { margin-top: 17px; }
+.storefront .product-info h3 { font-size: 14px; }
+.storefront .product-info>strong { font-size: 18px; }
+.storefront .add-button { box-shadow: none; width: 37px; height: 37px; }
+.storefront .budget-note { margin: 40px 40px 0; background: transparent; border-width: 1px 0; border-radius: 0; padding: 22px 0; }
+.storefront .letter-banner { margin: 65px 40px 0; border-radius: 0; padding: 45px; }
+.storefront .how { margin: 0 40px; padding: 35px 0; }
+.storefront footer { max-width: none; margin: 0 40px; }
+.storefront.desktop-mode { padding-top: 40px; }
+.storefront.desktop-mode .market-header { position: sticky; top: 0; background: var(--cream); color: var(--brown); padding: 0 25px; }
+.storefront.desktop-mode .landing-hero { height: calc(100svh - 180px); min-height: 450px; }
+.storefront.desktop-mode .window-bar { position: relative; z-index: 31; }
+@media(min-width:1800px) { .storefront .goods,.storefront .budget-note,.storefront .letter-banner,.storefront .how,.storefront footer { max-width: 1720px; margin-left: auto; margin-right: auto; } }
+@media(max-width:900px) {
+  .storefront { --store-header-height: 80px; }
+  .storefront .market-header { padding: 0 24px; }
+  .storefront .market-header nav { gap: 16px; font-size: 11px; }
+  .storefront .market-brand { font-size: 26px; }
+  .storefront .header-actions { gap: 12px; }
+  .storefront .goods { padding: 45px 24px 0; }
+  .storefront .budget-note,.storefront .letter-banner,.storefront .how,.storefront footer { margin-left: 24px; margin-right: 24px; }
+  .storefront .product-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 35px 18px; }
+  .landing-side { left: 24px; }
+}
+@media(max-width:600px) {
+  .storefront { --store-header-height: 76px; }
+  .storefront .market-header { padding: 0 16px; grid-template-columns: 1fr auto 1fr; }
+  .storefront .market-brand { font-size: 20px; letter-spacing: 1px; }
+  .storefront .market-brand small { font-size: 7px; letter-spacing: 3px; margin-top: 5px; }
+  .storefront .market-header nav { flex-direction: column; align-items: start; gap: 3px; font-size: 10px; }
+  .storefront .market-header nav button { padding: 5px 0; }
+  .storefront .header-actions { flex-direction: row; gap: 7px; margin: 0; }
+  .storefront .balance { flex-direction: column; gap: 1px; font-size: 8px; }
+  .storefront .balance strong { font-size: 12px; }
+  .storefront .bag svg { width: 21px; }
+  .landing-hero { min-height: 500px; }
+  .landing-poster { background-size: contain; background-position: center 40%; }
+  .landing-bottom { bottom: 45px; gap: 13px; }
+  .landing-bottom h1 { font-size: 24px; }
+  .landing-edition { font-size: 8px; letter-spacing: 2px; }
+  .landing-side { display: none; }
+  .video-toggle { bottom: 20px; right: 16px; }
+  .storefront .goods { padding: 38px 16px 0; }
+  .storefront .section-heading { padding-bottom: 20px; }
+  .storefront .section-heading h2 { font-size: 25px; }
+  .storefront .section-heading h2 span { display: none; }
+  .storefront .product-count { font-size: 10px; }
+  .storefront .filters { margin: 18px 0 23px; }
+  .storefront .product-grid { gap: 28px 12px; }
+  .storefront .product-tag { margin-top: 11px; }
+  .storefront .product-info h3 { font-size: 11px; }
+  .storefront .product-info>strong { font-size: 17px; }
+  .storefront .add-button { width: 30px; height: 30px; }
+  .storefront .budget-note,.storefront .letter-banner,.storefront .how,.storefront footer { margin-left: 16px; margin-right: 16px; }
+  .storefront .letter-banner { margin-top: 35px; padding: 25px 18px; }
+  .storefront .budget-note { margin-top: 28px; }
+  .storefront.desktop-mode { padding: 15px 10px 80px; }
+  .storefront.desktop-mode .market-header { padding: 0 12px; }
+  .storefront.desktop-mode .market-brand { font-size: 18px; }
+}

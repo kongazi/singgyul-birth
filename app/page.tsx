@@ -1,12 +1,16 @@
 'use client';
 import {useEffect,useState,useRef} from 'react';
-import {ShoppingBag,ArrowUpRight,ArrowRight,Plus,Minus,X,Mail,Check,ChevronLeft,ChevronRight,Monitor,Heart} from 'lucide-react';
+import {ShoppingBag,ArrowUpRight,ArrowRight,Plus,Minus,X,Mail,Check,Monitor,Heart} from 'lucide-react';
 import {products,BUDGET,total,addItem,validCart,storage,type Cart,type Order} from '../lib/market';
+
+import LandingHero from './LandingHero';
+import './storefront.css';
 
 type Panel='cart'|'letter'|'success'|null;
 export default function Home(){
- const [cart,setCart]=useState<Cart>({}),[name,setName]=useState(''),[letter,setLetter]=useState(''),[ready,setReady]=useState(false),[panel,setPanel]=useState<Panel>(null),[category,setCategory]=useState('전체'),[desktop,setDesktop]=useState(false),[slide,setSlide]=useState(0),[notice,setNotice]=useState('');
+ const [cart,setCart]=useState<Cart>({}),[name,setName]=useState(''),[letter,setLetter]=useState(''),[ready,setReady]=useState(false),[panel,setPanel]=useState<Panel>(null),[category,setCategory]=useState('전체'),[desktop,setDesktop]=useState(false),[scrolled,setScrolled]=useState(false),[notice,setNotice]=useState('');
  const [sending,setSending]=useState(false);
+ useEffect(()=>{const update=()=>setScrolled(window.scrollY>80);update();window.addEventListener('scroll',update,{passive:true});return()=>window.removeEventListener('scroll',update);},[]);
  const submissionId=useRef<string|null>(null);
  const migrationStarted=useRef(false);
  const used=total(cart),count=Object.values(cart).reduce((a,b)=>a+b,0);
@@ -47,14 +51,11 @@ export default function Home(){
    }catch(e){setNotice(e instanceof Error?e.message:'접수하지 못했어요. 다시 시도해 주세요.');}finally{setSending(false);}
  }
  const art=(p:typeof products[number])=>({backgroundImage:'url(/market-reference.png)',backgroundSize:'426.667% 642.678%',backgroundPosition:`${p.x/784*100}% ${p.y/1297*100}%`});
- return <div className={desktop?'desktop-mode':''}>
+ return <div className={"storefront"+(desktop?' desktop-mode':'')}>
  {desktop&&<aside className="desktop-icons"><button onClick={()=>setPanel(null)}><ShoppingBag/>생일 마켓</button><button onClick={()=>setPanel('letter')}><Mail/>축하 카드</button><button onClick={()=>setDesktop(false)}><ArrowUpRight/>마켓으로</button></aside>}
  <div className="site-window">{desktop&&<div className="window-bar"><span>🍊 SINGGYUL MARKET</span><button onClick={()=>setDesktop(false)} aria-label="데스크톱 모드 닫기"><X size={18}/></button></div>}
- <header className="header"><a href="#" className="logo">SINGGYUL<br/>MARKET<span className="logo-fruit">🍊</span></a><nav><a href="#goods">추억 굿즈</a><button onClick={()=>setPanel('letter')}>축하 카드</button></nav><div className="header-actions"><span className="balance">남은 귤 <strong>{BUDGET-used}</strong><span>🍊</span></span><button className="bag" onClick={()=>setPanel('cart')} aria-label={`장바구니 ${count}개`}><ShoppingBag size={26}/>{count>0&&<b>{count}</b>}</button></div></header>
- <main><section className="intro"><div><span className="eyebrow">A LITTLE GIFT, A LOT OF LOVE</span><h1>띵귤의 생일 마켓 <span className="spark">✳</span></h1></div><p>함께 웃었던 순간들을 모아,<br/><strong>오늘은 띵귤님에게 선물해요.</strong></p></section>
- <section className={`hero hero-${slide}`} aria-label="생일 축하 배너">{slide===0?<div className="hero-photo" role="img" aria-label="HAPPY BIRTHDAY SINGGYUL, 귤과 촛불로 장식한 생일 케이크"/>:<div className="alternate-hero"><span>{slide===1?'🍊':'💌'}</span><div><small>{slide===1?'MADE OF OUR MEMORIES':'DEAR. SINGGYUL'}</small><h2>{slide===1?'추억을 담고,\n마음을 더하고.':'가장 특별한 선물은\n당신의 한마디.'}</h2><p>{slide===1?'100귤로 완성하는 나만의 생일 선물':'오래 간직할 생일 편지를 남겨 주세요.'}</p><button onClick={()=>slide===1?document.getElementById('goods')?.scrollIntoView({behavior:'smooth'}):setPanel('letter')}>{slide===1?'굿즈 둘러보기':'편지 쓰기'} <ArrowRight size={16}/></button></div></div>}<button className="hero-arrow left" aria-label="이전 배너" onClick={()=>setSlide((slide+2)%3)}><ChevronLeft/></button><button className="hero-arrow right" aria-label="다음 배너" onClick={()=>setSlide((slide+1)%3)}><ChevronRight/></button></section>
- <div className="hero-bottom"><span>FOR OUR FAVORITE PERSON, SINGGYUL</span><div className="dots">{[0,1,2].map(i=><button aria-label={`${i+1}번 배너`} aria-pressed={slide===i} key={i} className={slide===i?'active':''} onClick={()=>setSlide(i)}/>)}</div><span>생일 축하해요, 띵귤님 ♡</span></div>
- <section className="budget-note"><span className="mini-orange">🍊</span><div><strong>당신에게 도착한 100귤</strong><p>마음에 드는 굿즈를 담고, 편지와 함께 선물해 주세요.</p></div></section>
+ <header className={`market-header${scrolled?' scrolled':''}`}><nav aria-label="마켓 메뉴"><a href="#goods">추억 굿즈</a><button onClick={()=>setPanel('letter')}>축하 카드</button></nav><a href="#" className="market-brand" aria-label="싱귤 마켓 처음으로">SINGGYUL<small>MARKET</small></a><div className="header-actions"><span className="balance">남은 귤 <strong>{BUDGET-used}</strong></span><button className="bag" onClick={()=>setPanel('cart')} aria-label={`장바구니 ${count}개`}><ShoppingBag size={26}/>{count>0&&<b>{count}</b>}</button></div></header>
+ <main className="market-main"><LandingHero/>
  <section id="goods" className="goods"><div className="section-heading"><div><span className="eyebrow">MEMORY COLLECTION</span><h2>추억 굿즈 <span>함께한 순간을 골라보세요</span></h2></div><span className="product-count">8 little memories</span></div><div className="filters">{['전체','방송의 순간','귤빛 일상','추억 한 조각'].map(c=><button key={c} onClick={()=>setCategory(c)} className={category===c?'selected':''}>{c}{c==='전체'&&<span>8</span>}</button>)}<span>작은 굿즈에 담긴, 커다란 마음</span></div>
  <div className="product-grid">{products.filter(p=>category==='전체'||p.category===category).map((p,i)=><article className="product" key={p.id}><div className="product-image" style={art(p)}>{i===0&&category==='전체'&&<span className="product-label">BEST MEMORY</span>}{!!cart[p.id]&&<span className="in-cart"><Check size={12}/> {cart[p.id]}개 담김</span>}<button disabled={!ready||used+p.price>BUDGET} className="add-button" onClick={()=>add(p.id)} aria-label={`${p.name} ${p.price}귤 담기`}><Plus size={22}/></button></div><p className="product-tag">{p.tag}</p><div className="product-info"><h3>{p.name}</h3><strong>{p.price}<span>귤</span></strong></div></article>)}</div></section>
  <section className="letter-banner"><div className="envelope">💌</div><div><span className="eyebrow">WITH LOVE, FROM YOU</span><h2>마지막으로, 마음 한 장 더.</h2><p>띵귤님에게 전하고 싶은 이야기를 들려주세요.</p></div><button className="primary" onClick={()=>setPanel('letter')}>축하 카드 쓰기 <ArrowUpRight size={19}/></button></section>

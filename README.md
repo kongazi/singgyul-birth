@@ -68,3 +68,6 @@ node scripts/check-privacy.mjs
 마지막 명령은 실행 중인 로컬 개발 서버에 인증 거부, 접수 응답 비노출, 관리자 조회·분류, 로그아웃 후 기존 세션 차단을 검사합니다. 자체 테스트 주문만 생성 후 삭제합니다. 로컬 파일 저장소 전용입니다.
 
 배너: `public/birthday-hero.png`. 굿즈 사진: `public/market-reference.png`.
+
+## 메인 영상 교체
+첫 화면은 전체 높이의 비주얼 영역이며 스크롤하면 굿즈가 이어집니다. 현재 생일 이미지를 사용합니다. 영상 파일을 public/videos에 추가하고 lib/site.ts의 heroMedia.video를 '/videos/birthday.mp4'처럼 설정하면 영상으로 전환됩니다. 자동 재생은 음소거되며 동작 줄이기 설정을 존중합니다.
