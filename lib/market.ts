@@ -30,7 +30,7 @@ export const products = [
   },
   {
     "id": "goods-WASD",
-    "name": "벌칙 WASD",
+    "name": "WASD",
     "price": 10,
     "category": "게임",
     "image": "/assets/goods/에셋_게임_WASD.png"
@@ -58,7 +58,7 @@ export const products = [
   },
   {
     "id": "goods-멧챠",
-    "name": "메챠",
+    "name": "메챠 카멜레온",
     "price": 10,
     "category": "게임",
     "image": "/assets/goods/에셋_게임_멧챠.png"
