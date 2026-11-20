@@ -115,6 +115,17 @@
 .product-price { margin-top: 6px; font-size: 12px; color: #847467; }
 .goods-add { display: flex; align-items: center; justify-content: center; gap: 4px; flex-shrink: 0; min-height: 40px; padding: 8px 10px; border: 1px solid #dfd5c8; border-radius: 3px; font-size: 11px; }
 .goods-add:hover:not(:disabled) { background: #eee7dd; }
+.goods-controls { display: flex; align-items: center; flex-shrink: 0; gap: 6px; }
+.goods-remove { display: grid; place-items: center; min-width: 40px; min-height: 40px; border: 1px solid #dfd5c8; border-radius: 3px; }
+.goods-remove:hover { background: #eee7dd; }
+.goods-quantity { min-width: 18px; text-align: center; font-size: 12px; }
+.goods-controls .goods-add { min-width: 40px; }
+@media(max-width:1200px) { .storefront .goods .product-info { flex-wrap: wrap; } }
+@media(max-width:600px) {
+  .goods-controls { width: 100%; margin-top: 3px; }
+  .goods-controls .goods-add { width: auto; flex: 1; margin-top: 0; }
+  .goods-controls .goods-remove { flex: 1; }
+}
 .storefront .goods .in-cart { bottom: 10px; left: 10px; background: #fffaf0ed; color: var(--brown); border-radius: 3px; }
 @media(max-width:600px) {
   .storefront .goods .section-heading h2 { font-size: 23px; }

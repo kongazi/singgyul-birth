@@ -5,7 +5,7 @@ import { parseSubmission, receipt } from '../../../lib/submission';
 export const runtime = 'nodejs';
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return json({ error: '허용되지 않은 요청입니다.' }, 403);
-  if (!configured()) return json({ error: '관리자 설정을 준비 중이에요. 잠시 후 다시 시도해 주세요.' }, 503);
+  if (!configured()) return json({ error: '지금은 편지를 보낼 수 없어요. 잠시 후 다시 시도해 주세요.' }, 503);
   try {
     const order = parseSubmission(await body(request));
     if (!await rateLimit('submissions', 500, 3600)) return json({ error: '잠시 후 다시 보내 주세요.' }, 429);
