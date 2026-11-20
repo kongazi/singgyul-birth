@@ -28,6 +28,16 @@ export async function get(key: string): Promise<unknown> {
   if (sql) { const rows = await sql`SELECT value FROM singgyul_private WHERE key=${key}`; return rows[0]?.value; }
   try { return JSON.parse(fs.readFileSync(path.join(directory, encodeURIComponent(key) + '.json'), 'utf8')); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw e; }
 }
+export async function deleteOrder(id: string) {
+  if (!/^[a-f0-9-]{36}$/i.test(id)) throw new Error('INVALID');
+  await init();
+  const keys = [`order:${id}`, `review:${id}`];
+  if (sql) {
+    await sql`DELETE FROM singgyul_private WHERE key IN (${keys[0]}, ${keys[1]})`;
+  } else {
+    for (const key of keys) fs.rmSync(path.join(directory, encodeURIComponent(key) + '.json'), { force: true });
+  }
+}
 export async function allRecords() {
   await init();
   const entries: {key:string;value:unknown}[] = sql ? await sql`SELECT key,value FROM singgyul_private WHERE key LIKE 'order:%' OR key LIKE 'review:%'` : fs.readdirSync(directory).filter(f => f.endsWith('.json')).map(f => ({ key: decodeURIComponent(f.slice(0, -5)), value: JSON.parse(fs.readFileSync(path.join(directory, f), 'utf8')) }));

@@ -1,7 +1,19 @@
-import { body, json, sameOrigin, isAdmin } from '../../../../lib/server/auth';
-import { allRecords, get, put } from '../../../../lib/server/store';
+import { body, json, sameOrigin, isAdmin, adminRole } from '../../../../lib/server/auth';
+import { allRecords, get, put, deleteOrder } from '../../../../lib/server/store';
 import { deliveryLabels, updateReview, type Review } from '../../../../lib/moderation';
 export const runtime = 'nodejs';
+export async function DELETE(request: Request) {
+  if (!sameOrigin(request)) return json({ error:'허용되지 않은 요청입니다.' },403);
+  const role = await adminRole();
+  if (!role) return json({ error:'관리자 로그인이 필요해요.' },401);
+  if (role !== 'superadmin') return json({ error:'편지 삭제 권한이 없어요.' },403);
+  try {
+    const data = await body(request);
+    if (typeof data?.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(data.id)) return json({ error:'편지를 확인해 주세요.' },400);
+    await deleteOrder(data.id);
+    return json({ ok:true });
+  } catch { return json({ error:'삭제하지 못했어요. 다시 시도해 주세요.' },503); }
+}
 export async function GET() {
   if (!await isAdmin()) return json({ error:'관리자 로그인이 필요해요.' },401);
   try { return json(await allRecords()); } catch { return json({ error:'기록을 불러오지 못했어요.' },503); }

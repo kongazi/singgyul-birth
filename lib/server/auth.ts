@@ -8,21 +8,34 @@ export const cookieOptions = { httpOnly: true, secure: process.env.NODE_ENV === 
 export function configured() { return (process.env.ADMIN_PASSWORD?.length ?? 0) >= 16 && (process.env.ADMIN_SESSION_SECRET?.length ?? 0) >= 32; }
 function digest(value: string) { return createHash('sha256').update(value).digest(); }
 export function checkPassword(value: string) { return configured() && timingSafeEqual(digest(value), digest(process.env.ADMIN_PASSWORD!)); }
+export type AdminRole = 'admin' | 'superadmin';
+export function passwordRole(value: string): AdminRole | null {
+  if (!configured()) return null;
+  const password = process.env.SUPERADMIN_PASSWORD;
+  if (password && password.length >= 16 && timingSafeEqual(digest(value), digest(password))) return 'superadmin';
+  return checkPassword(value) ? 'admin' : null;
+}
 function sign(value: string) { return createHmac('sha256', process.env.ADMIN_SESSION_SECRET!).update(value).update(digest(process.env.ADMIN_PASSWORD!)).digest('hex'); }
-export async function newSession() {
+export async function newSession(role: AdminRole = 'admin') {
   const expires = Date.now() + cookieOptions.maxAge * 1000;
   const nonce = randomBytes(24).toString('hex');
-  await put(`session:${nonce}`, { expires, active: true });
+  await put(`session:${nonce}`, { expires, active: true, role, credential: role === 'superadmin' ? digest(process.env.SUPERADMIN_PASSWORD!).toString('hex') : undefined });
   const payload = `${expires}.${nonce}`; return `${payload}.${sign(payload)}`;
 }
-export async function isAdmin() {
-  if (!configured()) return false;
+export async function adminRole(): Promise<AdminRole | null> {
+  if (!configured()) return null;
   const value = (await cookies()).get(sessionCookie)?.value ?? '';
   const [expiry, nonce, signature, extra] = value.split('.');
-  if (extra || !/^\d{13}$/.test(expiry ?? '') || !/^[a-f0-9]{48}$/.test(nonce ?? '') || !/^[a-f0-9]{64}$/.test(signature ?? '') || Number(expiry) <= Date.now()) return false;
-  if (!timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(sign(`${expiry}.${nonce}`), 'hex'))) return false;
-  try { const session = await get(`session:${nonce}`) as { active?: boolean; expires?: number } | undefined; return session?.active === true && session.expires === Number(expiry); } catch { return false; }
+  if (extra || !/^\d{13}$/.test(expiry ?? '') || !/^[a-f0-9]{48}$/.test(nonce ?? '') || !/^[a-f0-9]{64}$/.test(signature ?? '') || Number(expiry) <= Date.now()) return null;
+  if (!timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(sign(`${expiry}.${nonce}`), 'hex'))) return null;
+  try {
+    const session = await get(`session:${nonce}`) as { active?: boolean; expires?: number; role?: AdminRole; credential?: string } | undefined;
+    if (!session?.active || session.expires !== Number(expiry)) return null;
+    if (session.role === 'superadmin') return process.env.SUPERADMIN_PASSWORD && session.credential === digest(process.env.SUPERADMIN_PASSWORD).toString('hex') ? 'superadmin' : null;
+    return session.role === 'admin' || session.role === undefined ? 'admin' : null;
+  } catch { return null; }
 }
+export async function isAdmin() { return (await adminRole()) !== null; }
 export async function revokeSession() {
   if (!await isAdmin()) return;
   const value = (await cookies()).get(sessionCookie)!.value;
