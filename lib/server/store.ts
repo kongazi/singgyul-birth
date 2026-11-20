@@ -38,6 +38,48 @@ export async function deleteOrder(id: string) {
     for (const key of keys) fs.rmSync(path.join(directory, encodeURIComponent(key) + '.json'), { force: true });
   }
 }
+export async function consumeOAuth(state:string) {
+  await init();
+  const key=`oauth:${state}`;
+  if(sql) {
+    const rows=await sql`DELETE FROM singgyul_private WHERE key=${key} RETURNING value`;
+    return Number(rows[0]?.value?.expires)>Date.now();
+  }
+  const file=path.join(directory,encodeURIComponent(key)+'.json');
+  try { const value=JSON.parse(fs.readFileSync(file,'utf8')); fs.unlinkSync(file); return value.expires>Date.now(); }
+  catch(e) { if((e as NodeJS.ErrnoException).code==='ENOENT')return false;throw e; }
+}
+export async function submitOnce(order:Order,owner:string) {
+  await init();
+  const claim=`sent:${owner}`, key=`order:${order.id}`, value={...order,owner};
+  if(sql) return sql.begin(async tx=>{
+    const inserted=await tx`INSERT INTO singgyul_private (key,value) VALUES (${claim},${tx.json({id:order.id})}) ON CONFLICT (key) DO NOTHING RETURNING key`;
+    if(!inserted.length) {
+      const [existing]=await tx`SELECT value FROM singgyul_private WHERE key=${claim}`;
+      const [saved]=await tx`SELECT value FROM singgyul_private WHERE key=${key}`;
+      if(existing?.value.id===order.id && saved?.value.owner===owner) return saved.value as Order;
+      throw new Error('ALREADY_SENT');
+    }
+    const saved=await tx`INSERT INTO singgyul_private (key,value) VALUES (${key},${tx.json(value)}) ON CONFLICT (key) DO NOTHING RETURNING key`;
+    if(!saved.length)throw new Error('ID_CONFLICT');
+    return order;
+  });
+  const claimFile=path.join(directory,encodeURIComponent(claim)+'.json');
+  const orderFile=path.join(directory,encodeURIComponent(key)+'.json');
+  try { fs.writeFileSync(claimFile,JSON.stringify({id:order.id}),{flag:'wx',mode:0o600}); }
+  catch(e) {
+    if((e as NodeJS.ErrnoException).code!=='EEXIST')throw e;
+    const existing=JSON.parse(fs.readFileSync(claimFile,'utf8'));
+    if(existing.id===order.id && fs.existsSync(orderFile)) {
+      const saved=JSON.parse(fs.readFileSync(orderFile,'utf8'));
+      if(saved.owner===owner)return saved as Order;
+    }
+    throw new Error('ALREADY_SENT');
+  }
+  try { fs.writeFileSync(orderFile,JSON.stringify(value),{flag:'wx',mode:0o600}); }
+  catch(e) { fs.unlinkSync(claimFile);throw e; }
+  return order;
+}
 export async function allRecords() {
   await init();
   const entries: {key:string;value:unknown}[] = sql ? await sql`SELECT key,value FROM singgyul_private WHERE key LIKE 'order:%' OR key LIKE 'review:%'` : fs.readdirSync(directory).filter(f => f.endsWith('.json')).map(f => ({ key: decodeURIComponent(f.slice(0, -5)), value: JSON.parse(fs.readFileSync(path.join(directory, f), 'utf8')) }));

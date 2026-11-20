@@ -1,10 +1,10 @@
 import { json } from '../../../lib/server/auth';
-import { writer } from '../../../lib/server/visitor';
+import { account } from '../../../lib/server/account';
 import { writerOrders } from '../../../lib/server/store';
 export const runtime = 'nodejs';
 export async function GET() {
   try {
-    const owner = await writer();
+    const owner = (await account())?.owner;
     if (!owner) return json({ orders: [] });
     const orders = await writerOrders(owner);
     return json({ orders: orders.map(o => ({ id: o.id, createdAt: o.createdAt, name: o.name, letter: o.letter, items: o.items, total: o.total })) });

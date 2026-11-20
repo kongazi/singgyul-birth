@@ -6,7 +6,7 @@ import { ArrowLeft, Mail, Package, Search, Check, Download, Save } from 'lucide-
 import { products, type Order } from '../../lib/market';
 import { deliveryLabels, getReview, deliveryReady, type Delivery, type Reviews } from '../../lib/moderation';
 import './admin.css';
-import { migrateAdminRecords } from '../../lib/migrate-admin';
+
 
 export default function Admin({ canDelete = false }: { canDelete?: boolean }) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -28,7 +28,7 @@ export default function Admin({ canDelete = false }: { canDelete?: boolean }) {
       if (response.status === 401) { setOrders([]); setReviews({}); window.location.replace('/admin/login'); return; }
       let data = await response.json();
       if (!response.ok) throw new Error(data.error);
-      await migrateAdminRecords();
+
       const refreshed = await fetch('/api/admin/orders', { cache: 'no-store' });
       if (!refreshed.ok) throw new Error();
       data = await refreshed.json();

@@ -190,3 +190,6 @@
   .storefront.desktop-mode .market-header { padding: 0 12px; }
   .storefront.desktop-mode .market-brand { font-size: 18px; }
 }
+
+.naver-login { background: #03c75a; color: white; border-radius: 4px; }
+.naver-login:hover { background: #02ad4e; }
