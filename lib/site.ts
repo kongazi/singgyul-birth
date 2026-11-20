@@ -1,4 +1,3 @@
-export const heroMedia: { poster: string; video: string | null } = {
-  poster: '/birthday-hero.png',
+export const heroMedia: { video: string | null } = {
   video: '/videos/singgyul-market-banner.mp4',
 };
