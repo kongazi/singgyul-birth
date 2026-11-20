@@ -88,8 +88,12 @@
 .storefront .section-heading h2 span { display: inline-block; }
 .storefront .product-count { margin: 0; font-size: 12px; }
 .storefront .filters { margin: 23px 0 30px; }
-.storefront .product-grid { gap: 42px 20px; }
-.storefront .product-image { border-radius: 0; }
+.welcome-dialog { max-width: 460px; }
+.welcome-dialog h2 { font-family: inherit; font-size: 25px; font-weight: 600; }
+.welcome-actions { display: grid; gap: 12px; margin-top: 28px; }
+.welcome-actions button { min-height: 48px; border-radius: 4px; }
+.storefront .product-grid { grid-template-columns: repeat(6,minmax(0,1fr)); gap: 42px 20px; }
+.storefront .product-image { border-radius: 0; background-color: #eee2cf; }
 .storefront .product-tag { margin-top: 17px; }
 .storefront .product-info h3 { font-size: 14px; }
 .storefront .product-info>strong { font-size: 18px; }
@@ -107,9 +111,9 @@
 .goods-budget { color: #807367; font-size: 12px; }
 .goods-disclaimer { max-width: 740px; margin-top: 16px; color: #776b60; font-size: 12px; line-height: 1.9; word-break: keep-all; }
 .storefront .goods .filters { gap: 24px; margin: 28px 0; padding-bottom: 0; border-bottom: 1px solid var(--line); }
-.storefront .goods .filters button { padding: 12px 0; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: #887b6e; }
-.storefront .goods .filters button.selected { border-bottom-color: var(--brown); color: var(--brown); }
-.storefront .goods .product-image { border-radius: 2px; box-shadow: none; }
+.storefront .goods .filters button { padding: 12px 0; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: #594638; font-size: 15px; font-weight: 600; }
+.storefront .goods .filters button.selected { border-bottom-color: var(--brown); color: var(--brown); font-weight: 700; }
+.storefront .goods .product-image { border: 0; border-radius: 0; box-shadow: none; }
 .storefront .goods .product-info { margin-top: 15px; align-items: center; gap: 8px; }
 .storefront .goods .product-info h3 { font-size: 13px; font-weight: 500; line-height: 1.5; }
 .product-price { margin-top: 6px; font-size: 12px; color: #847467; }
