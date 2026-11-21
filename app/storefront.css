@@ -161,7 +161,7 @@
   .storefront .market-header nav { flex-direction: column; align-items: start; gap: 3px; font-size: 10px; }
   .storefront .market-header nav button { padding: 5px 0; }
   .storefront .header-actions { flex-direction: row; gap: 7px; margin: 0; }
-  .storefront .balance { position: relative; padding-left: 25px; flex-direction: column; gap: 1px; font-size: 8px; }
+  .storefront .balance { position: relative; padding-left: 25px; flex-direction: column; gap: 1px; font-size: 8px; white-space: nowrap; flex-shrink: 0; }
   .storefront .balance-coin { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 23px; height: 23px; }
   .storefront .balance strong { font-size: 12px; }
   .storefront .bag svg { width: 21px; }
@@ -191,5 +191,16 @@
   .storefront.desktop-mode .market-brand { font-size: 18px; }
 }
 
+@media(max-width:360px) {
+  .storefront .market-header { padding: 0 12px; }
+  .storefront .market-brand { font-size: 17px; letter-spacing: .5px; }
+  .storefront .header-actions { gap: 3px; }
+}
+
 .naver-login { background: #03c75a; color: white; border-radius: 4px; }
 .naver-login:hover { background: #02ad4e; }
+
+/* Leave room for the fixed CD player, including phone safe areas. */
+.storefront .video-toggle { bottom: calc(76px + env(safe-area-inset-bottom)); }
+.storefront .gift-skip { bottom: calc(76px + env(safe-area-inset-bottom)); }
+.storefront footer.market-footer { padding-bottom: calc(85px + env(safe-area-inset-bottom)); }

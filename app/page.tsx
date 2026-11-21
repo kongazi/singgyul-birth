@@ -4,6 +4,7 @@ import {ShoppingBag,ArrowUpRight,Plus,Minus,X,Mail,Check} from 'lucide-react';
 import {products,BUDGET,total,addItem,validCart,storage,type Cart,type Order} from '../lib/market';
 
 import LandingHero from './LandingHero';
+import BgmPlayer from './BgmPlayer';
 import GiftGuide from './GiftGuide';
 import MyLetters from './MyLetters';
 import './storefront.css';
@@ -87,6 +88,7 @@ export default function Home(){
  }
  const art=(p:typeof products[number])=>({backgroundImage:`url("${encodeURI(p.image)}")`,backgroundSize:'contain',backgroundPosition:'center',backgroundRepeat:'no-repeat'});
  return <div className="storefront">
+ <BgmPlayer/>
  <div className="site-window">
  <header className={`market-header${scrolled?' scrolled':''}`}><nav aria-label="마켓 메뉴"><a href="#goods">MEMORIES</a><button onClick={()=>setPanel('letter')}>LETTER</button></nav><a href="#" className="market-brand" aria-label="싱귤 마켓 처음으로">SINGGYUL<small>MARKET</small></a><div className="header-actions"><span className="balance"><img className="balance-coin" src="/assets/gift-guide/refined/coin.png" alt="" width="28" height="28"/>남은 귤 <strong>{BUDGET-used}</strong></span><button className="bag" onClick={()=>setPanel('cart')} aria-label={`장바구니 ${count}개`}><ShoppingBag size={26}/>{count>0&&<b>{count}</b>}</button></div></header>
  <main className="market-main"><LandingHero/><GiftGuide/>
