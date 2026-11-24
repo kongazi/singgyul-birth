@@ -3,6 +3,8 @@
   if (customElements.get(tag)) return;
 
   const assetBase = new URL('./', document.currentScript.src);
+  const defaultVolume = 15;
+  const volumeStorageKey = 'singgyul.cd-player.volume';
   const tracks = [
     { title: '겨울아이', artist: '수지', file: '겨울아이.mp3', color: 'birthday' },
     { title: 'Winter Wonderland', artist: 'Richard Himber 악단', file: 'winter_wonderland.mp3', color: 'winter' },
@@ -27,6 +29,10 @@
           </div>
           <button class="skip previous" type="button" aria-label="이전 곡" title="이전 곡"></button>
           <button class="skip next" type="button" aria-label="다음 곡" title="다음 곡"></button>
+          <label class="volume">
+            <span class="volume-icon" aria-hidden="true"></span>
+            <input type="range" aria-label="음량" min="0" max="100" step="1" value="${defaultVolume}">
+          </label>
           <p class="error" role="status"></p>
           <audio preload="none" hidden></audio>
         </section>
@@ -43,11 +49,54 @@
       const title = root.querySelector('.track-title');
       const artist = root.querySelector('.artist');
       const play = root.querySelector('.play');
+      const volume = root.querySelector('.volume input');
       const error = root.querySelector('.error');
       let currentIndex = 0;
       let trackVersion = 0;
 
-      audio.volume = 0.35;
+      audio.volume = defaultVolume / 100;
+      const hasNativeVolume = audio.volume === defaultVolume / 100;
+      const VolumeContext = window.AudioContext || window.webkitAudioContext;
+      const canAdjustVolume = hasNativeVolume || Boolean(VolumeContext);
+      let volumeContext;
+      let volumeGain;
+
+      volume.parentElement.hidden = !canAdjustVolume;
+      player.toggleAttribute('data-volume', canAdjustVolume);
+      try {
+        const stored = localStorage.getItem(volumeStorageKey);
+        const value = Number(stored);
+        if (stored !== null && Number.isInteger(value) && value >= 0 && value <= 100) volume.value = stored;
+      } catch {}
+
+      function applyVolume() {
+        const percent = volume.valueAsNumber;
+        volume.setAttribute('aria-valuetext', `${percent}%`);
+        if (hasNativeVolume) audio.volume = percent / 100;
+        else if (volumeGain) volumeGain.gain.value = percent / 100;
+      }
+
+      function prepareVolume() {
+        if (hasNativeVolume || !VolumeContext) return;
+        if (!volumeContext) {
+          // Some mobile browsers ignore changes to HTMLMediaElement.volume.
+          volumeContext = new VolumeContext();
+          volumeGain = volumeContext.createGain();
+          applyVolume();
+          volumeContext.createMediaElementSource(audio).connect(volumeGain);
+          volumeGain.connect(volumeContext.destination);
+        }
+        if (volumeContext.state !== 'running') void volumeContext.resume().catch(() => {});
+      }
+
+      applyVolume();
+      volume.addEventListener('input', applyVolume);
+      volume.addEventListener('change', () => {
+        try { localStorage.setItem(volumeStorageKey, volume.value); } catch {}
+      });
+      this.suspendVolume = () => {
+        if (volumeContext?.state === 'running') void volumeContext.suspend().catch(() => {});
+      };
 
       function updateTransport() {
         const active = !audio.paused && !audio.ended;
@@ -63,6 +112,7 @@
         error.textContent = '';
         if (audio.error) audio.load();
         try {
+          prepareVolume();
           await audio.play();
         } catch (failure) {
           if (version === trackVersion && failure.name !== 'AbortError') {
@@ -126,12 +176,13 @@
       });
 
       loadTrack(0, false);
-      void startPlayback(true);
+      if (hasNativeVolume || !VolumeContext) void startPlayback(true);
     }
 
     disconnectedCallback() {
       this.stopWaitingForInteraction?.();
       this.shadowRoot?.querySelector('audio').pause();
+      this.suspendVolume?.();
     }
   }
 

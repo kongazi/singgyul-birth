@@ -142,7 +142,7 @@ export const products = [
   },
   {
     "id": "goods-풀트-노래뱅",
-    "name": "풀트 노래뱅",
+    "name": "감성 노래 특집",
     "price": 30,
     "category": "노래",
     "image": "/assets/goods/노래_풀트 노래뱅.png"

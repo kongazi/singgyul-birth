@@ -146,6 +146,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 }
 
 .artist { align-self: start; color: var(--subtle); font-size: 0.6875rem; letter-spacing: -0.015em; }
+.player[data-volume] .artist { margin-inline-end: 4.5rem; }
 .skip { grid-row: 1; width: 1.5rem; height: 1.5rem; color: #785740; }
 .previous { grid-column: 3; }
 .next { grid-column: 4; }
@@ -160,6 +161,50 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 }
 
 .previous::before { transform: scaleX(-1); }
+
+.volume {
+  grid-area: 2 / 2 / 3 / -1;
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 0.25rem;
+  inline-size: 4.25rem;
+  color: var(--subtle);
+}
+
+.volume-icon {
+  position: relative;
+  flex: 0 0 0.625rem;
+  block-size: 0.625rem;
+}
+
+.volume-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0 0.1875rem 0 0;
+  background: currentColor;
+  clip-path: polygon(0 28%, 36% 28%, 100% 0, 100% 100%, 36% 72%, 0 72%);
+}
+
+.volume-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0.0625rem 0 0.0625rem auto;
+  inline-size: 0.375rem;
+  border-inline-end: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.volume input {
+  min-inline-size: 0;
+  inline-size: 100%;
+  block-size: 1rem;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.volume input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .error {
   position: absolute;
