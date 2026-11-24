@@ -76,6 +76,7 @@ export default function Admin({ canDelete = false }: { canDelete?: boolean }) {
   });
   const active = orders.find(o => o.id === selected);
   const approvedCount = deliveryReady(orders, reviews).length;
+  const goodsOrders = orders.filter(o => getReview(reviews, o.id).delivery !== 'rejected');
 
   return <main className="admin-page">
     <div className="admin-top"><Link href="/"><ArrowLeft size={15} /> 마켓으로</Link><span>SINGGYUL MARKET · {canDelete ? '최고 관리자' : '관리자'}</span><button onClick={logout}>로그아웃</button></div>
@@ -90,7 +91,30 @@ export default function Admin({ canDelete = false }: { canDelete?: boolean }) {
       <div className="admin-filters"><label className="admin-search"><Search size={17} /><input aria-label="편지 검색" placeholder="보내는 사람, 편지 내용, 주문번호 검색" value={query} onChange={e => setQuery(e.target.value)} /></label><select aria-label="확인 여부 필터" value={checked} onChange={e => setChecked(e.target.value)}><option value="all">확인 여부 전체</option><option value="no">미확인</option><option value="yes">확인 완료</option></select><select aria-label="전달 분류 필터" value={delivery} onChange={e => setDelivery(e.target.value)}><option value="all">전달 분류 전체</option>{Object.entries(deliveryLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
       <div className="admin-columns"><section className="admin-list" aria-label="편지 목록"><div className="admin-list-title">도착한 마음 <span>{filtered.length}개</span></div>{filtered.length ? filtered.map(o => { const r = getReview(reviews, o.id); return <button className={`letter-row ${selected === o.id ? 'selected' : ''}`} key={o.id} onClick={() => selectLetter(o.id)}><div><strong>{o.name}</strong><time>{new Date(o.createdAt).toLocaleDateString('ko-KR')}</time></div><p>{o.letter}</p><div><span className={`review-badge ${r.checked ? 'checked' : ''}`}>{r.checked ? '확인 완료' : '미확인'}</span><span className={`review-badge ${r.delivery}`}>{deliveryLabels[r.delivery]}</span><small>{o.items.length ? `굿즈 ${o.items.reduce((sum, p) => sum + p.quantity, 0)}개` : '편지만'}</small></div></button>; }) : <div className="empty"><Mail size={32} /><h3>{orders.length ? '검색 결과가 없어요' : '아직 도착한 편지가 없어요'}</h3><p>{orders.length ? '검색어나 분류 조건을 바꿔 주세요.' : '마켓에서 저장한 편지가 여기에 표시돼요.'}</p></div>}</section>
       <section className="admin-detail" aria-label="편지 검토">{active ? <><LetterReview key={`${active.id}:${getReview(reviews, active.id).updatedAt}`} order={active} reviews={reviews} onSave={save} onDirty={setDirty} />{canDelete && <button className="secondary full admin-delete" disabled={deleting} onClick={() => removeLetter(active)}>{deleting ? '삭제 중…' : '편지 삭제'}</button>}</> : <div className="empty"><Mail size={38} /><h3>어떤 마음이 도착했을까요?</h3><p>목록에서 편지를 선택해 내용을 확인해 주세요.</p></div>}</section></div>
-    </> : <section className="admin-goods"><div className="admin-list-title">굿즈별 선택 현황 <span>전체 저장 기록 기준</span></div><div className="admin-table-wrap"><table><thead><tr><th>굿즈</th><th>분류</th><th>가격</th><th>선택 수량</th><th>포함된 주문</th></tr></thead><tbody>{products.map(p => { const related = orders.filter(o => o.items.some(i => i.id === p.id)); return <tr key={p.id}><th>{p.name}</th><td>{p.category}</td><td>{p.price}귤</td><td><strong>{related.reduce((sum, o) => sum + o.items.filter(i => i.id === p.id).reduce((n, i) => n + i.quantity, 0), 0)}개</strong></td><td>{related.length}건{related.length > 0 && <details><summary>선택 내역 보기</summary>{related.map(o => <button key={o.id} onClick={() => { selectLetter(o.id); setTab('letters'); setQuery(''); setChecked('all'); setDelivery('all'); }}>{o.name} · {o.items.filter(i => i.id === p.id).reduce((n, i) => n + i.quantity, 0)}개 →</button>)}</details>}</td></tr>; })}</tbody></table></div></section>}
+    </> : <section className="admin-goods">
+      <div className="admin-list-title">굿즈별 선택 현황 <span>전달 불가 편지 제외</span></div>
+      <div className="admin-table-wrap">
+        <table>
+          <thead><tr><th>굿즈</th><th>분류</th><th>가격</th><th>선택 수량</th><th>포함된 주문</th></tr></thead>
+          <tbody>{products.map(p => {
+            const related = goodsOrders.filter(o => o.items.some(i => i.id === p.id)).map(order => ({
+              order,
+              quantity: order.items.filter(i => i.id === p.id).reduce((sum, i) => sum + i.quantity, 0),
+            }));
+            return <tr key={p.id}>
+              <th>{p.name}</th><td>{p.category}</td><td>{p.price}귤</td>
+              <td><strong>{related.reduce((sum, row) => sum + row.quantity, 0)}개</strong></td>
+              <td>{related.length}건{related.length > 0 && <details>
+                <summary>선택 내역 보기</summary>
+                {related.map(({ order, quantity }) => <button key={order.id} onClick={() => {
+                  selectLetter(order.id); setTab('letters'); setQuery(''); setChecked('all'); setDelivery('all');
+                }}>{order.name} · {quantity}개 →</button>)}
+              </details>}</td>
+            </tr>;
+          })}</tbody>
+        </table>
+      </div>
+    </section>}
   </main>;
 }
 
