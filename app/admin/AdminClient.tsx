@@ -2,67 +2,89 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Mail, Package, Search, Check, Download, Save } from 'lucide-react';
+import { ArrowLeft, Mail, Package, Search, Check, Download, Save, Archive } from 'lucide-react';
 import { products, type Order } from '../../lib/market';
-import { deliveryLabels, getReview, deliveryReady, type Delivery, type Reviews } from '../../lib/moderation';
+import { deliveryLabels, getReview, deliveryReady, type DeletedOrder, type Delivery, type Reviews } from '../../lib/moderation';
 import './admin.css';
 
+type AdminRecords = { orders: Order[]; deletedOrders: DeletedOrder[]; reviews: Reviews };
+type AdminTab = 'letters' | 'goods' | 'deleted';
+type OrderChange = { kind: 'delete' | 'restore'; order: Order } | { kind: 'reset'; through: string };
 
 export default function Admin({ canDelete = false }: { canDelete?: boolean }) {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [deletedOrders, setDeletedOrders] = useState<DeletedOrder[]>([]);
   const [reviews, setReviews] = useState<Reviews>({});
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState<'letters' | 'goods'>('letters');
+  const [tab, setTab] = useState<AdminTab>('letters');
   const [query, setQuery] = useState('');
   const [checked, setChecked] = useState('all');
   const [delivery, setDelivery] = useState('all');
   const [selected, setSelected] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [dirty, setDirty] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [changingOrders, setChangingOrders] = useState(false);
   function selectLetter(id: string) { if (dirty && id !== selected) { setMessage('현재 편지의 변경사항을 먼저 저장해 주세요.'); return; } setSelected(id); }
+
+  function openTab(next: AdminTab) {
+    if (dirty && next !== tab) { setMessage('현재 편지의 변경사항을 먼저 저장해 주세요.'); return; }
+    setTab(next);
+  }
+
+  function setRecords(data: AdminRecords) {
+    setOrders(data.orders);
+    setDeletedOrders(data.deletedOrders ?? []);
+    setReviews(data.reviews);
+  }
+
+  function returnToLogin() {
+    setRecords({ orders: [], deletedOrders: [], reviews: {} });
+    window.location.replace('/admin/login');
+  }
 
   async function load() {
     try {
       const response = await fetch('/api/admin/orders', { cache: 'no-store' });
-      if (response.status === 401) { setOrders([]); setReviews({}); window.location.replace('/admin/login'); return; }
-      let data = await response.json();
+      if (response.status === 401) { returnToLogin(); return; }
+      const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-
-      const refreshed = await fetch('/api/admin/orders', { cache: 'no-store' });
-      if (!refreshed.ok) throw new Error();
-      data = await refreshed.json();
-      setOrders(data.orders); setReviews(data.reviews); setReady(true);
+      setRecords(data);
+      setReady(true);
     } catch { setMessage('기록을 불러오지 못했어요. 다시 시도해 주세요.'); }
   }
   useEffect(() => { void load(); const onShow = (e: PageTransitionEvent) => { if (e.persisted) window.location.reload(); }; window.addEventListener('pageshow', onShow); return () => window.removeEventListener('pageshow', onShow); }, []);
   async function save(id: string, values: { checked: boolean; delivery: Delivery; note: string }) {
     try {
       const response = await fetch('/api/admin/orders', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...values }) });
-      if (response.status === 401) { setOrders([]); setReviews({}); window.location.replace('/admin/login'); return false; }
+      if (response.status === 401) { returnToLogin(); return false; }
       let data = await response.json(); if (!response.ok) throw new Error(data.error);
       setReviews(previous => ({ ...previous, [id]: data.review }));
       setMessage('확인 여부와 전달 분류를 저장했어요.'); return true;
     } catch { setMessage('저장하지 못했어요. 다시 시도해 주세요.'); return false; }
   }
-  async function removeLetter(order: Order) {
-    if (deleting || !window.confirm(`${order.name}님의 편지를 삭제할까요? 함께 담은 굿즈와 검토 기록도 삭제되며 복구할 수 없습니다.`)) return;
-    setDeleting(true);
+  async function changeOrders(change: OrderChange) {
+    if (changingOrders) return;
+    if (dirty) { setMessage('현재 편지의 변경사항을 먼저 저장해 주세요.'); return; }
+    const { kind } = change;
+    if (kind === 'reset' && !window.confirm(`편지 리스트를 초기화할까요? 현재 목록의 ${orders.length}개 편지는 굿즈와 검토 기록을 포함해 삭제 목록에 보관돼요.`)) return;
+    if (kind === 'delete' && !window.confirm(`${change.order.name}님의 편지를 삭제 목록으로 옮길까요? 나중에 복원할 수 있어요.`)) return;
+    const payload = change.kind === 'reset' ? { all: true, through: change.through } : { id: change.order.id };
+    setChangingOrders(true);
     try {
-      const response = await fetch('/api/admin/orders', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: order.id }) });
-      if (response.status === 401) { window.location.replace('/admin/login'); return; }
+      const response = await fetch('/api/admin/orders', { method: kind === 'restore' ? 'POST' : 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (response.status === 401) { returnToLogin(); return; }
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-      setOrders(previous => previous.filter(item => item.id !== order.id));
-      setReviews(previous => { const next = {...previous}; delete next[order.id]; return next; });
-      setSelected(null); setDirty(false); setMessage('편지를 삭제했어요.');
-    } catch (error) { setMessage(error instanceof Error ? error.message : '삭제하지 못했어요.'); }
-    finally { setDeleting(false); }
+      setRecords(data);
+      setSelected(null);
+      setMessage(kind === 'restore' ? '편지를 복원했어요.' : kind === 'reset' ? '현재 편지를 삭제 목록으로 옮겼어요.' : '편지를 삭제 목록으로 옮겼어요.');
+    } catch (error) { setMessage(error instanceof Error ? error.message : '편지 목록을 변경하지 못했어요.'); }
+    finally { setChangingOrders(false); }
   }
   async function logout() {
     const response = await fetch('/api/admin/logout', { method: 'POST' });
     if (!response.ok) { setMessage('로그아웃하지 못했어요. 다시 시도해 주세요.'); return; }
-    setOrders([]); setReviews({}); window.location.replace('/admin/login');
+    returnToLogin();
   }
   function download() {
     const approved = deliveryReady(orders, reviews);
@@ -85,13 +107,36 @@ export default function Admin({ canDelete = false }: { canDelete?: boolean }) {
     <section className="admin-stats" aria-label="편지 현황">
       {[['전체 편지', orders.length], ['미확인', orders.filter(o => !getReview(reviews, o.id).checked).length], ['전달 가능', approvedCount], ['보류 · 전달 불가', orders.filter(o => ['held', 'rejected'].includes(getReview(reviews, o.id).delivery)).length]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{ready ? value : '—'}</strong></div>)}
     </section>
-    <div className="admin-tabs"><button className={tab === 'letters' ? 'active' : ''} onClick={() => setTab('letters')}><Mail size={17} /> 편지 리스트 <b>{orders.length}</b></button><button className={tab === 'goods' ? 'active' : ''} onClick={() => { if (dirty) { setMessage('현재 편지의 변경사항을 먼저 저장해 주세요.'); return; } setTab('goods'); }}><Package size={17} /> 굿즈 리스트 <b>{products.length}</b></button></div>
+    <div className="admin-tabs">
+      <button className={tab === 'letters' ? 'active' : ''} onClick={() => openTab('letters')}><Mail size={17} /> 편지 리스트 <b>{orders.length}</b></button>
+      <button className={tab === 'goods' ? 'active' : ''} onClick={() => openTab('goods')}><Package size={17} /> 굿즈 리스트 <b>{products.length}</b></button>
+      {canDelete && <button className={tab === 'deleted' ? 'active' : ''} onClick={() => openTab('deleted')}><Archive size={17} /> 삭제 목록 <b>{deletedOrders.length}</b></button>}
+    </div>
     {message && <div className="admin-message" role="status">{message}<button aria-label="알림 닫기" onClick={() => setMessage('')}>×</button></div>}
     {!ready ? <div className="empty">기록을 불러오는 중이에요.</div> : tab === 'letters' ? <>
+      {canDelete && <div className="admin-list-actions"><button className="secondary admin-delete" disabled={changingOrders || orders.length === 0} onClick={() => {
+        if (orders[0]) void changeOrders({ kind: 'reset', through: orders[0].createdAt });
+      }}>편지 리스트 초기화</button></div>}
       <div className="admin-filters"><label className="admin-search"><Search size={17} /><input aria-label="편지 검색" placeholder="보내는 사람, 편지 내용, 주문번호 검색" value={query} onChange={e => setQuery(e.target.value)} /></label><select aria-label="확인 여부 필터" value={checked} onChange={e => setChecked(e.target.value)}><option value="all">확인 여부 전체</option><option value="no">미확인</option><option value="yes">확인 완료</option></select><select aria-label="전달 분류 필터" value={delivery} onChange={e => setDelivery(e.target.value)}><option value="all">전달 분류 전체</option>{Object.entries(deliveryLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
       <div className="admin-columns"><section className="admin-list" aria-label="편지 목록"><div className="admin-list-title">도착한 마음 <span>{filtered.length}개</span></div>{filtered.length ? filtered.map(o => { const r = getReview(reviews, o.id); return <button className={`letter-row ${selected === o.id ? 'selected' : ''}`} key={o.id} onClick={() => selectLetter(o.id)}><div><strong>{o.name}</strong><time>{new Date(o.createdAt).toLocaleDateString('ko-KR')}</time></div><p>{o.letter}</p><div><span className={`review-badge ${r.checked ? 'checked' : ''}`}>{r.checked ? '확인 완료' : '미확인'}</span><span className={`review-badge ${r.delivery}`}>{deliveryLabels[r.delivery]}</span><small>{o.items.length ? `굿즈 ${o.items.reduce((sum, p) => sum + p.quantity, 0)}개` : '편지만'}</small></div></button>; }) : <div className="empty"><Mail size={32} /><h3>{orders.length ? '검색 결과가 없어요' : '아직 도착한 편지가 없어요'}</h3><p>{orders.length ? '검색어나 분류 조건을 바꿔 주세요.' : '마켓에서 저장한 편지가 여기에 표시돼요.'}</p></div>}</section>
-      <section className="admin-detail" aria-label="편지 검토">{active ? <><LetterReview key={`${active.id}:${getReview(reviews, active.id).updatedAt}`} order={active} reviews={reviews} onSave={save} onDirty={setDirty} />{canDelete && <button className="secondary full admin-delete" disabled={deleting} onClick={() => removeLetter(active)}>{deleting ? '삭제 중…' : '편지 삭제'}</button>}</> : <div className="empty"><Mail size={38} /><h3>어떤 마음이 도착했을까요?</h3><p>목록에서 편지를 선택해 내용을 확인해 주세요.</p></div>}</section></div>
-    </> : <section className="admin-goods">
+      <section className="admin-detail" aria-label="편지 검토">{active ? <><LetterReview key={`${active.id}:${getReview(reviews, active.id).updatedAt}`} order={active} reviews={reviews} onSave={save} onDirty={setDirty} />{canDelete && <button className="secondary full admin-delete" disabled={changingOrders} onClick={() => changeOrders({ kind: 'delete', order: active })}>편지 삭제</button>}</> : <div className="empty"><Mail size={38} /><h3>어떤 마음이 도착했을까요?</h3><p>목록에서 편지를 선택해 내용을 확인해 주세요.</p></div>}</section></div>
+    </> : tab === 'deleted' ? <section className="admin-list admin-deleted-list" aria-label="삭제된 편지 목록">
+      <div className="admin-list-title">삭제 목록 <span>서버에 보관된 편지 {deletedOrders.length}개</span></div>
+      {deletedOrders.length === 0 && <div className="empty">삭제된 편지가 없어요.</div>}
+      {deletedOrders.map(order => {
+        const review = getReview(reviews, order.id);
+        return <details className="admin-deleted-letter" key={order.id}>
+          <summary><strong>{order.name}</strong><time dateTime={order.deletedAt}>{new Date(order.deletedAt).toLocaleString('ko-KR')} 삭제</time></summary>
+          <LetterContent order={order} />
+          <div className="admin-deleted-review">
+            <span className={`review-badge ${review.checked ? 'checked' : ''}`}>{review.checked ? '확인 완료' : '미확인'}</span>
+            <span className={`review-badge ${review.delivery}`}>{deliveryLabels[review.delivery]}</span>
+            {review.note && <p>{review.note}</p>}
+          </div>
+          <button type="button" className="secondary" disabled={changingOrders} onClick={() => changeOrders({ kind: 'restore', order })}>편지 복원</button>
+        </details>;
+      })}
+    </section> : <section className="admin-goods">
       <div className="admin-list-title">굿즈별 선택 현황 <span>전달 불가 편지 제외</span></div>
       <div className="admin-table-wrap">
         <table>
@@ -118,6 +163,13 @@ export default function Admin({ canDelete = false }: { canDelete?: boolean }) {
   </main>;
 }
 
+function LetterContent({ order }: { order: Order }) {
+  return <>
+    <div className="admin-letter"><span>To. 띵귤님</span><p>{order.letter}</p><span>From. {order.name}</span></div>
+    <div className="admin-gift-summary"><strong>함께 담은 굿즈</strong>{order.items.length ? order.items.map(i => <p key={i.id}>{i.name} × {i.quantity}<span>{i.price * i.quantity}귤</span></p>) : <p>굿즈 없이 보낸 편지예요.</p>}</div>
+  </>;
+}
+
 function LetterReview({ order, reviews, onSave, onDirty }: { onDirty: (dirty: boolean) => void; order: Order; reviews: Reviews; onSave: (id: string, values: { checked: boolean; delivery: Delivery; note: string }) => Promise<boolean> }) {
   const review = getReview(reviews, order.id);
   const [checked, setChecked] = useState(review.checked);
@@ -127,6 +179,6 @@ function LetterReview({ order, reviews, onSave, onDirty }: { onDirty: (dirty: bo
   const dirty = checked !== review.checked || delivery !== review.delivery || note !== review.note;
   useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
   useEffect(() => { if (!dirty) return; const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty]);
-  return <><div className="admin-detail-head"><span className="eyebrow">A LETTER FOR SINGGYUL</span><h2>{order.name}님의 편지</h2><p>{new Date(order.createdAt).toLocaleString('ko-KR')} · #{order.id.slice(0, 8).toUpperCase()}</p></div><div className="admin-letter"><span>To. 띵귤님</span><p>{order.letter}</p><span>From. {order.name}</span></div><div className="admin-gift-summary"><strong>함께 담은 굿즈</strong>{order.items.length ? order.items.map(i => <p key={i.id}>{i.name} × {i.quantity}<span>{i.price * i.quantity}귤</span></p>) : <p>굿즈 없이 보낸 편지예요.</p>}</div>
+  return <><div className="admin-detail-head"><span className="eyebrow">A LETTER FOR SINGGYUL</span><h2>{order.name}님의 편지</h2><p>{new Date(order.createdAt).toLocaleString('ko-KR')} · #{order.id.slice(0, 8).toUpperCase()}</p></div><LetterContent order={order} />
     <form className="review-form" onSubmit={async e => { e.preventDefault(); if (saving) return; setSaving(true); await onSave(order.id, { checked, delivery, note }); setSaving(false); }}><h3>편지 검토</h3><label className="admin-checkbox"><input type="checkbox" checked={checked} onChange={e => { setChecked(e.target.checked); if (!e.target.checked && delivery === 'approved') setDelivery('pending'); }} /><Check size={17} /> 편지 내용을 확인했어요</label><label className="field">전달 분류<select value={delivery} onChange={e => setDelivery(e.target.value as Delivery)}>{Object.entries(deliveryLabels).map(([value, label]) => <option key={value} value={value} disabled={value === 'approved' && !checked}>{label}</option>)}</select></label>{!checked && <p className="admin-help">내용 확인 후 ‘전달 가능’으로 분류할 수 있어요.</p>}<label className="field">관리 메모<textarea rows={3} maxLength={1000} placeholder="보류 사유나 확인할 내용을 남겨 주세요." value={note} onChange={e => setNote(e.target.value)} /></label><button className="primary full" disabled={!dirty || saving} type="submit"><Save size={16} /> 검토 상태 저장</button><p className="admin-help">{dirty ? '변경사항을 저장한 뒤 다른 편지를 선택해 주세요.' : review.updatedAt ? `마지막 저장: ${new Date(review.updatedAt).toLocaleString('ko-KR')}` : '아직 검토 기록이 없어요.'}</p></form></>;
 }

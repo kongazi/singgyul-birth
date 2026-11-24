@@ -103,7 +103,11 @@ export default function Home(){
          items:products.filter(p=>cart[p.id]).map(p=>({id:p.id,quantity:cart[p.id]})),
        }),
      });
-     const data=await response.json();if(response.status===401){setPanelState('login');throw new Error(data.error);}if(data.code==='ALREADY_SENT'){setPanelState('history');throw new Error(data.error);}if(!response.ok)throw new Error(data.error);
+     const data=await response.json();
+     if(response.status===401){setPanelState('login');throw new Error(data.error);}
+     if(data.code==='ALREADY_SENT'){setPanelState('history');throw new Error(data.error);}
+     if(data.code==='ID_CONFLICT')delete submissionIds.current[mode];
+     if(!response.ok)throw new Error(data.error);
 
      // Keep the current view stable; prepare a new order for the next visit.
      const nextOrder=shuffledProducts();

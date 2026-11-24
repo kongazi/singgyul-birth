@@ -3,6 +3,7 @@ import type { Order } from './market';
 export type Delivery = 'pending' | 'approved' | 'held' | 'rejected';
 export type Review = { checked: boolean; delivery: Delivery; note: string; updatedAt: string };
 export type Reviews = Record<string, Review>;
+export type DeletedOrder = Order & { deletedAt: string };
 export const deliveryLabels: Record<Delivery, string> = { pending: '미분류', approved: '전달 가능', held: '보류', rejected: '전달 불가' };
 export function getReview(reviews: Reviews, id: string): Review {
   const r = reviews[id];

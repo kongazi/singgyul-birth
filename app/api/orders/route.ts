@@ -19,6 +19,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'ALREADY_SENT') return json({ error: '이미 편지를 보낸 계정이에요.', code }, 409);
+    if (code === 'ID_CONFLICT') return json({ error: '이전 접수 번호가 사용 중이에요. 보내기 버튼을 다시 눌러 주세요.', code }, 409);
     if (['INVALID', 'TOO_LARGE'].includes(code)) return json({ error: '편지 입력 내용과 굿즈 수량을 확인해 주세요.' }, 400);
     return json({ error: '편지를 보내지 못했어요. 잠시 후 다시 시도해 주세요.' }, 503);
   }
