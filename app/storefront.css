@@ -199,6 +199,12 @@
 
 .naver-login { background: #03c75a; color: white; border-radius: 4px; }
 .naver-login:hover { background: #02ad4e; }
+.anonymous-write { display: block; margin: 8px auto 0; padding: 10px 8px; color: #755e4e; font-size: .8125rem; text-decoration: underline; text-underline-offset: 3px; }
+.anonymous-write:hover { color: #994014; }
+.anonymous-sender { padding: 12px; border: 1px solid var(--line); border-radius: 4px; background: #fffdf8; font-size: 13px; }
+.anonymous-sender small { display: block; margin-top: 4px; color: #755e4e; font-size: 12px; font-weight: 400; }
+.full-cart-note { margin-top: 10px; font-size: 13px; line-height: 1.7; }
+.letter-browse { margin-top: 12px; }
 
 /* Leave room for the fixed CD player, including phone safe areas. */
 .storefront .video-toggle { bottom: calc(76px + env(safe-area-inset-bottom)); }

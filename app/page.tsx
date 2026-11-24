@@ -2,6 +2,7 @@
 import {useEffect,useState,useRef} from 'react';
 import {ShoppingBag,ArrowUpRight,Plus,Minus,X,Mail,Check} from 'lucide-react';
 import {products,BUDGET,total,addItem,validCart,storage,type Cart,type Order} from '../lib/market';
+import {ANONYMOUS_SENDER} from '../lib/submission';
 
 import LandingHero from './LandingHero';
 import BgmPlayer from './BgmPlayer';
@@ -26,10 +27,16 @@ export default function Home(){
  },[]);
  function selectCategory(next:string){setCategory(next);}
  const [cart,setCart]=useState<Cart>({}),[name,setName]=useState(''),[letter,setLetter]=useState(''),[ready,setReady]=useState(false),[panel,setPanelState]=useState<Panel>(null),[category,setCategory]=useState('전체'),[scrolled,setScrolled]=useState(false),[notice,setNotice]=useState('');
- function setPanel(next:Panel){
+ const [anonymous,setAnonymous]=useState(false);
+ const [sentAnonymousName,setSentAnonymousName]=useState<string|null>(null);
+ const [showBrowseOption,setShowBrowseOption]=useState(false);
+ function setPanel(next:Panel, fromFullCart=false){
    if(panel==='welcome'&&next!=='welcome'){
      try { storage.save('welcome-dismissed',true); } catch {}
    }
+   setShowBrowseOption(fromFullCart);
+   if(next===null)setAnonymous(false);
+   if(next==='letter'&&anonymous){setPanelState('letter');return;}
    if(next==='letter'||next==='history'){
      void fetch('/api/auth/me',{cache:'no-store'}).then(async response=>{
        if(!response.ok)throw new Error();
@@ -37,7 +44,10 @@ export default function Home(){
        if(!user.authenticated){setPanelState('login');return;}
        if(user.sent&&next==='letter'){setPanelState('history');setNotice('이미 편지를 보냈어요. 보낸 편지를 확인해 주세요.');return;}
        setPanelState(next);
-     }).catch(()=>setNotice('로그인 상태를 확인하지 못했어요. 다시 시도해 주세요.'));
+     }).catch(()=>{
+       if(next==='letter')setPanelState('login');
+       setNotice('로그인 상태를 확인하지 못했어요. 다시 시도해 주세요.');
+     });
      return;
    }
    setPanelState(next);
@@ -55,7 +65,7 @@ export default function Home(){
  const [sending,setSending]=useState(false);
  const visibleProducts=productOrder.filter(p=>category==='전체'||p.category===category);
  useEffect(()=>{const update=()=>setScrolled(window.scrollY>80);update();window.addEventListener('scroll',update,{passive:true});return()=>window.removeEventListener('scroll',update);},[]);
- const submissionId=useRef<string|null>(null);
+ const submissionIds=useRef<Partial<Record<'named'|'anonymous',string>>>({});
 
  const used=total(cart),count=Object.values(cart).reduce((a,b)=>a+b,0);
  useEffect(()=>{
@@ -68,13 +78,31 @@ export default function Home(){
  },[]);
  useEffect(()=>{if(!ready)return;try{storage.save('cart',cart);}catch{setNotice('새로고침하면 장바구니가 비워질 수 있어요.');}},[cart,ready]); useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4000);return()=>clearTimeout(timer);},[notice]);
  useEffect(()=>{if(!panel)return;const prev=document.activeElement as HTMLElement;const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape')setPanel(null);if(e.key==='Tab'){const nodes=Array.from(document.querySelectorAll<HTMLElement>('.dialog button:not(:disabled),.dialog input,.dialog textarea,.dialog a'));const first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}};document.body.style.overflow='hidden';document.querySelector<HTMLElement>('.dialog button')?.focus();document.addEventListener('keydown',onKey);return()=>{document.body.style.overflow='';document.removeEventListener('keydown',onKey);prev?.focus();};},[panel]);
- function add(id:string){const next=addItem(cart,id);if(next===cart){setNotice('100귤을 넘길 수 없어요. 장바구니를 조금 비워 주세요.');return;}setCart(next);}
+ function add(id:string){
+   const next=addItem(cart,id);
+   if(next===cart){setNotice('100귤을 넘길 수 없어요. 장바구니를 조금 비워 주세요.');return;}
+   setCart(next);
+   if(total(next)===BUDGET)setPanel('letter',true);
+ }
  function remove(id:string){setCart(c=>({...c,[id]:Math.max(0,(c[id]||0)-1)}));}
+ const canSend=ready&&used<=BUDGET&&(anonymous||!!name.trim())&&!!letter.trim();
  async function submit(e:React.FormEvent){
-   e.preventDefault();if(sending||!ready||used>BUDGET||!name.trim()||!letter.trim())return;
-   setSending(true);submissionId.current??=crypto.randomUUID();
+   e.preventDefault();
+   if(sending||!canSend)return;
+   setSending(true);
    try {
-     const response=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:submissionId.current,name:name.trim(),letter:letter.trim(),items:products.filter(p=>cart[p.id]).map(p=>({id:p.id,quantity:cart[p.id]}))})});
+     const mode=anonymous?'anonymous':'named';
+     const id=submissionIds.current[mode]??=crypto.randomUUID();
+     const response=await fetch('/api/orders',{
+       method:'POST',
+       headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({
+         id,
+         ...(anonymous ? {anonymous:true} : {name:name.trim()}),
+         letter:letter.trim(),
+         items:products.filter(p=>cart[p.id]).map(p=>({id:p.id,quantity:cart[p.id]})),
+       }),
+     });
      const data=await response.json();if(response.status===401){setPanelState('login');throw new Error(data.error);}if(data.code==='ALREADY_SENT'){setPanelState('history');throw new Error(data.error);}if(!response.ok)throw new Error(data.error);
 
      // Keep the current view stable; prepare a new order for the next visit.
@@ -82,7 +110,9 @@ export default function Home(){
      if(nextOrder.every((p,i)=>p.id===productOrder[i].id)) nextOrder.push(nextOrder.shift()!);
      try { storage.save('product-order',nextOrder.map(p=>p.id)); } catch {}
 
-     setCart({});setLetter('');setName('');submissionId.current=null;setPanel('success');
+     setSentAnonymousName(anonymous ? data.receipt.name : null);
+     setAnonymous(false);
+     setCart({});setLetter('');setName('');submissionIds.current={};setPanel('success');
 
    }catch(e){setNotice(e instanceof Error?e.message:'편지를 보내지 못했어요. 다시 시도해 주세요.');}finally{setSending(false);}
  }
@@ -97,13 +127,28 @@ export default function Home(){
  <section className="letter-invitation" aria-labelledby="letter-invitation-title"><div><h2 id="letter-invitation-title">띵귤님께 생일 편지를 남겨주세요.</h2><p>굿즈 없이 편지만 보내도 좋아요.<br/>보내주신 편지는 띵귤님께 전달돼요.</p></div><button className="letter-write" onClick={()=>setPanel('letter')}>편지 쓰기</button></section>
  </main><footer className="market-footer"><strong>SINGGYUL MARKET</strong><button className="my-letters-link" onClick={()=>setPanel('history')}>내가 보낸 편지</button></footer></div>
  {notice&&<div className="toast" role="status"><span>🍊</span>{notice}</div>}
- {panel&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setPanel(null);}}><section className={panel === 'welcome' ? 'dialog welcome-dialog' : panel === 'cart' ? 'dialog cart-dialog' : panel === 'letter' ? 'dialog letter-dialog' : 'dialog'} role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div className="dialog-heading"><span className="eyebrow">SINGGYUL MARKET</span><button className="icon-button" onClick={()=>setPanel(null)} aria-label="닫기"><X/></button></div><h2 id="dialog-title">{panel==='login'?'로그인 후 편지를 작성해 주세요':panel==='welcome'?'어떻게 시작할까요?':panel==='cart'?'장바구니':panel==='letter'?'생일 편지 쓰기':panel==='history'?'내가 보낸 편지':'편지를 보냈어요!'}</h2>
- {panel==='login'&&<><p className="muted">네이버 계정당 한 번, 띵귤님께 편지를 보낼 수 있어요.</p><a className="primary full naver-login" href="/api/auth/naver" onClick={()=>{try{storage.save('cart',cart);storage.save('welcome-dismissed',true);}catch{}}}>네이버로 로그인</a></>}
+ {panel&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setPanel(null);}}><section className={panel === 'welcome' ? 'dialog welcome-dialog' : panel === 'cart' ? 'dialog cart-dialog' : panel === 'letter' ? 'dialog letter-dialog' : 'dialog'} role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div className="dialog-heading"><span className="eyebrow">SINGGYUL MARKET</span><button className="icon-button" onClick={()=>setPanel(null)} aria-label="닫기"><X/></button></div><h2 id="dialog-title">{panel==='login'?'편지 작성 방법을 선택해 주세요':panel==='welcome'?'어떻게 시작할까요?':panel==='cart'?'장바구니':panel==='letter'?'생일 편지 쓰기':panel==='history'?'내가 보낸 편지':'편지를 보냈어요!'}</h2>
+ {panel==='login'&&<>
+   {showBrowseOption&&<p className="full-cart-note">100귤을 모두 담았어요. 고른 굿즈와 함께 편지를 보내보세요.</p>}
+   <p className="muted">네이버 계정당 한 번, 띵귤님께 편지를 보낼 수 있어요.</p>
+   <a className="primary full naver-login" href="/api/auth/naver" onClick={()=>{try{storage.save('cart',cart);storage.save('welcome-dismissed',true);}catch{}}}>네이버로 로그인</a>
+   <button className="anonymous-write" type="button" onClick={()=>{setAnonymous(true);setNotice('');setPanelState('letter');}}>(로그인 없이 익명으로 작성할래요.)</button>
+ </>}
  {panel==='welcome'&&<><p className="muted">띵귤님께 편지를 쓰거나, 마켓을 먼저 둘러보세요.</p><div className="welcome-actions"><button className="primary full" onClick={()=>setPanel('letter')}>바로 편지 쓰기</button><button className="secondary full" onClick={()=>setPanel(null)}>사이트 둘러보기</button></div></>}
- {panel==='cart'&&<><p className="muted">100귤 안에서 선택하세요. 실물 배송이 없는 가상 선물입니다.</p>{!count?<div className="cart-empty"><h3>장바구니가 비어 있어요.</h3><p>굿즈 없이 편지만 보낼 수도 있어요.</p><div className="cart-empty-actions"><button className="secondary" onClick={()=>{setPanel(null);document.getElementById('goods')?.scrollIntoView({behavior:'smooth'});}}>굿즈 보기</button><button className="primary" onClick={()=>setPanel('letter')}>편지 쓰기</button></div></div>:<><div className="cart-list">{products.filter(p=>cart[p.id]>0).map(p=><div className="cart-row" key={p.id}><div className="thumbnail" style={art(p)}/><div className="cart-title"><strong>{p.name}</strong><span>{p.price}귤</span></div><div className="quantity"><button aria-label={`${p.name} 수량 줄이기`} onClick={()=>remove(p.id)}><Minus size={14}/></button><span>{cart[p.id]}</span><button disabled={used+p.price>100} aria-label={`${p.name} 수량 늘리기`} onClick={()=>add(p.id)}><Plus size={14}/></button></div></div>)}</div><div className="receipt"><span>담은 마음 <b>{used}귤</b></span><span>남은 귤 <b>{100-used}귤</b></span><div className="budget-track"><div style={{width:`${used}%`}}/></div></div><button className="primary full" onClick={()=>setPanel('letter')}>편지 쓰고 선물 보내기</button></>}</>}
- {panel==='letter'&&<form onSubmit={submit}><p className="muted">띵귤님께 전하고 싶은 이야기를 적어주세요.</p><label className="field">보내는 사람<input maxLength={30} required value={name} onChange={e=>setName(e.target.value)} placeholder="닉네임"/></label><label className="field">생일 축하 편지<textarea required maxLength={2000} rows={8} value={letter} onChange={e=>setLetter(e.target.value)} placeholder="편지 내용을 입력해주세요." /></label><div className="letter-meta"><span></span><span>{letter.length} / 2,000</span></div><div className="order-summary"><span>{count ? `선택한 굿즈 ${count}개` : '편지만 보내기'}</span><strong>{count ? `${used} / 100귤` : '귤 차감 없음'}</strong><button type="button" onClick={()=>setPanel('cart')}>{count ? '수정' : '굿즈 추가'}</button></div><button className="primary full" disabled={sending||!ready||used>BUDGET||!name.trim()||!letter.trim()} type="submit">{sending ? '보내는 중…' : count ? `${used}귤로 선물 보내기` : '편지만 보내기'}</button></form>}
+ {panel==='cart'&&<><p className="muted">100귤 안에서 선택하세요. 실물 배송이 없는 가상 선물입니다.</p>{!count?<div className="cart-empty"><h3>장바구니가 비어 있어요.</h3><p>굿즈 없이 편지만 보낼 수도 있어요.</p><div className="cart-empty-actions"><button className="secondary" onClick={()=>{setPanelState(null);document.getElementById('goods')?.scrollIntoView({behavior:'smooth'});}}>굿즈 보기</button><button className="primary" onClick={()=>setPanel('letter')}>편지 쓰기</button></div></div>:<><div className="cart-list">{products.filter(p=>cart[p.id]>0).map(p=><div className="cart-row" key={p.id}><div className="thumbnail" style={art(p)}/><div className="cart-title"><strong>{p.name}</strong><span>{p.price}귤</span></div><div className="quantity"><button aria-label={`${p.name} 수량 줄이기`} onClick={()=>remove(p.id)}><Minus size={14}/></button><span>{cart[p.id]}</span><button disabled={used+p.price>100} aria-label={`${p.name} 수량 늘리기`} onClick={()=>add(p.id)}><Plus size={14}/></button></div></div>)}</div><div className="receipt"><span>담은 마음 <b>{used}귤</b></span><span>남은 귤 <b>{100-used}귤</b></span><div className="budget-track"><div style={{width:`${used}%`}}/></div></div><button className="primary full" onClick={()=>setPanel('letter')}>편지 쓰고 선물 보내기</button></>}</>}
+ {panel==='letter'&&<form onSubmit={submit}>
+   <p className="muted">{showBrowseOption ? '100귤을 모두 담았어요. 고른 굿즈와 함께 편지를 보내보세요.' : '띵귤님께 전하고 싶은 이야기를 적어주세요.'}</p>
+   {anonymous
+     ? <p className="field">보내는 사람 <span className="anonymous-sender">{ANONYMOUS_SENDER} <small>번호는 전송할 때 자동으로 붙어요.</small></span></p>
+     : <label className="field">보내는 사람<input maxLength={30} required value={name} onChange={e=>setName(e.target.value)} placeholder="닉네임"/></label>}
+   <label className="field">생일 축하 편지<textarea required maxLength={2000} rows={8} value={letter} onChange={e=>setLetter(e.target.value)} placeholder="편지 내용을 입력해주세요." /></label>
+   <div className="letter-meta"><span></span><span>{letter.length} / 2,000</span></div>
+   <div className="order-summary"><span>{count ? `선택한 굿즈 ${count}개` : '편지만 보내기'}</span><strong>{count ? `${used} / 100귤` : '귤 차감 없음'}</strong><button type="button" onClick={()=>setPanel('cart')}>{count ? '수정' : '굿즈 추가'}</button></div>
+   <button className="primary full" disabled={sending||!canSend} type="submit">{sending ? '보내는 중…' : count ? `${used}귤로 선물 보내기` : '편지만 보내기'}</button>
+ </form>}
  {panel==='history'&&<MyLetters/>}
- {panel==='success'&&<div className="empty"><Mail size={42}/><h3>소중한 마음을 남겨주셔서 감사해요.</h3><p>보내주신 편지는 띵귤님께 전달할게요.</p><button className="primary full" onClick={()=>setPanel(null)}>마켓으로 돌아가기</button><button className="secondary full" onClick={()=>setPanel('history')}>내가 보낸 편지 보기</button></div>}
+ {showBrowseOption&&(panel==='login'||panel==='letter'||panel==='history')&&<button className="secondary full letter-browse" type="button" onClick={()=>{setPanelState(null);setShowBrowseOption(false);}}>더 둘러볼래요</button>}
+ {panel==='success'&&<div className="empty"><Mail size={42}/><h3>소중한 마음을 남겨주셔서 감사해요.</h3><p>{sentAnonymousName ? `${sentAnonymousName} 이름으로 편지를 보냈어요.` : '보내주신 편지는 띵귤님께 전달할게요.'}</p><button className="primary full" onClick={()=>setPanel(null)}>마켓으로 돌아가기</button>{!sentAnonymousName&&<button className="secondary full" onClick={()=>setPanel('history')}>내가 보낸 편지 보기</button>}</div>}
  </section></div>}
  </div>;
 }

@@ -4,8 +4,10 @@ import path from 'node:path';
 import postgres from 'postgres';
 import type { Order } from '../market';
 import type { Review, Reviews } from '../moderation';
+import { ANONYMOUS_SENDER } from '../submission';
 
 const directory = path.join(process.cwd(), '.private-data');
+const anonymousCounterKey = 'counter:anonymous-letters';
 const sql = process.env.DATABASE_URL ? postgres(process.env.DATABASE_URL, { max: 3, ssl: 'require' }) : null;
 let initialized: Promise<unknown> | undefined;
 async function init() {
@@ -49,20 +51,30 @@ export async function consumeOAuth(state:string) {
   try { const value=JSON.parse(fs.readFileSync(file,'utf8')); fs.unlinkSync(file); return value.expires>Date.now(); }
   catch(e) { if((e as NodeJS.ErrnoException).code==='ENOENT')return false;throw e; }
 }
-export async function submitOnce(order:Order,owner:string) {
+export async function submitOnce(order:Order,accountOwner:string|null) {
   await init();
-  const claim=`sent:${owner}`, key=`order:${order.id}`, value={...order,owner};
+  const owner = accountOwner ?? `anonymous:${order.id}`;
+  const claim=`sent:${owner}`, key=`order:${order.id}`;
   if(sql) return sql.begin(async tx=>{
     const inserted=await tx`INSERT INTO singgyul_private (key,value) VALUES (${claim},${tx.json({id:order.id})}) ON CONFLICT (key) DO NOTHING RETURNING key`;
     if(!inserted.length) {
       const [existing]=await tx`SELECT value FROM singgyul_private WHERE key=${claim}`;
       const [saved]=await tx`SELECT value FROM singgyul_private WHERE key=${key}`;
       if(existing?.value.id===order.id && saved?.value.owner===owner) return saved.value as Order;
-      throw new Error('ALREADY_SENT');
+      throw new Error(accountOwner === null ? 'ID_CONFLICT' : 'ALREADY_SENT');
     }
-    const saved=await tx`INSERT INTO singgyul_private (key,value) VALUES (${key},${tx.json(value)}) ON CONFLICT (key) DO NOTHING RETURNING key`;
+    let namedOrder = order;
+    if (accountOwner === null) {
+      const [counter] = await tx`
+        INSERT INTO singgyul_private (key,value) VALUES (${anonymousCounterKey},'1'::jsonb)
+        ON CONFLICT (key) DO UPDATE SET value=to_jsonb((singgyul_private.value::text)::int+1)
+        RETURNING value
+      `;
+      namedOrder = { ...order, name: ANONYMOUS_SENDER + counter.value };
+    }
+    const saved=await tx`INSERT INTO singgyul_private (key,value) VALUES (${key},${tx.json({...namedOrder,owner})}) ON CONFLICT (key) DO NOTHING RETURNING key`;
     if(!saved.length)throw new Error('ID_CONFLICT');
-    return order;
+    return namedOrder;
   });
   const claimFile=path.join(directory,encodeURIComponent(claim)+'.json');
   const orderFile=path.join(directory,encodeURIComponent(key)+'.json');
@@ -74,11 +86,25 @@ export async function submitOnce(order:Order,owner:string) {
       const saved=JSON.parse(fs.readFileSync(orderFile,'utf8'));
       if(saved.owner===owner)return saved as Order;
     }
-    throw new Error('ALREADY_SENT');
+    throw new Error(accountOwner === null ? 'ID_CONFLICT' : 'ALREADY_SENT');
   }
-  try { fs.writeFileSync(orderFile,JSON.stringify(value),{flag:'wx',mode:0o600}); }
-  catch(e) { fs.unlinkSync(claimFile);throw e; }
-  return order;
+  try {
+    let namedOrder = order;
+    if (accountOwner === null) {
+      if (fs.existsSync(orderFile)) throw new Error('ID_CONFLICT');
+      const counterFile = path.join(directory, encodeURIComponent(anonymousCounterKey) + '.json');
+      const next = fs.existsSync(counterFile) ? Number(fs.readFileSync(counterFile, 'utf8')) + 1 : 1;
+      const temp = counterFile + '.tmp';
+      fs.writeFileSync(temp, JSON.stringify(next), { mode: 0o600 });
+      fs.renameSync(temp, counterFile);
+      namedOrder = { ...order, name: ANONYMOUS_SENDER + next };
+    }
+    fs.writeFileSync(orderFile, JSON.stringify({ ...namedOrder, owner }), { flag: 'wx', mode: 0o600 });
+    return namedOrder;
+  } catch (e) {
+    fs.unlinkSync(claimFile);
+    throw e;
+  }
 }
 export async function allRecords() {
   await init();
